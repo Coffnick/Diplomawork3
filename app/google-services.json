@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "40523027902",
+    "firebase_url": "https://mainwork-7b62c-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "mainwork-7b62c",
+    "storage_bucket": "mainwork-7b62c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:40523027902:android:195383cee5bbc6a69755ef",
+        "android_client_info": {
+          "package_name": "com.example.coursework"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "40523027902-54gg4j8iuj2ma4ebu2vfbtoh9cu6hh3m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4SGryVSrfG--J1ZNojtbNyXf3MacY3Xk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "40523027902-54gg4j8iuj2ma4ebu2vfbtoh9cu6hh3m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:40523027902:android:fc983fc90eb31b3c9755ef",
+        "android_client_info": {
+          "package_name": "com.example.diplomawork"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "40523027902-54gg4j8iuj2ma4ebu2vfbtoh9cu6hh3m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4SGryVSrfG--J1ZNojtbNyXf3MacY3Xk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "40523027902-54gg4j8iuj2ma4ebu2vfbtoh9cu6hh3m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
