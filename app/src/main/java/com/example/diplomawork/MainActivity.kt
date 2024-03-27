@@ -4,11 +4,9 @@ import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
-import androidx.databinding.DataBindingUtil
 import com.example.diplomawork.databinding.ActivityMainBinding
 import com.google.firebase.auth.FirebaseAuth
-import com.yandex.mapkit.MapKitFactory
-import com.yandex.mapkit.mapview.MapView
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
