@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.Routes"
+    >
+
+
+    <ListView
+        android:id="@+id/RouteList"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible">
+
+    </ListView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/DescLayout"
+        android:layout_width="match_parent"
+        android:layout_height="585dp"
+
+        android:visibility="invisible">
+
+        <TextView
+            android:id="@+id/textView_Desc"
+            android:layout_width="match_parent"
+            android:layout_height="260dp"
+
+            android:layout_marginTop="1dp"
+            android:text="TextView"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Button
+            android:id="@+id/ShowRoute"
+            android:layout_width="255dp"
+            android:layout_height="66dp"
+            android:layout_marginTop="101dp"
+            android:layout_marginEnd="96dp"
+            android:layout_marginBottom="175dp"
+            android:layout_weight="1"
+            android:text="Построить маршрут"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textView_Desc"
+            app:layout_constraintVertical_bias="0.0" />
+
+        <Button
+            android:id="@+id/Close"
+
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="101dp"
+            android:layout_weight="1"
+            android:text="Закрыть"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textView_Desc"
+            app:layout_constraintVertical_bias="0.908" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

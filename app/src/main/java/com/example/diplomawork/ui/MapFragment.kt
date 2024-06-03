@@ -1,9 +1,12 @@
 package com.example.diplomawork.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
+
+import ParcelablePoint
+import android.annotation.SuppressLint
+
 import android.graphics.Color
-import android.graphics.PointF
+import com.yandex.mapkit.geometry.Point
+
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
@@ -11,178 +14,124 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import com.example.diplomawork.Profile
+import com.example.diplomawork.Func.MapFunc
 import com.example.diplomawork.R
-import com.example.diplomawork.databinding.ActivityProfileBinding
 import com.example.diplomawork.databinding.FragmentMapBinding
-import com.yandex.mapkit.Animation
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.yandex.mapkit.MapKitFactory
-import com.yandex.mapkit.geometry.Point
+import com.yandex.mapkit.RequestPoint
+import com.yandex.mapkit.RequestPointType
+import com.yandex.mapkit.directions.DirectionsFactory
+import com.yandex.mapkit.directions.driving.DrivingOptions
+import com.yandex.mapkit.directions.driving.DrivingRoute
+import com.yandex.mapkit.directions.driving.DrivingRouter
+import com.yandex.mapkit.directions.driving.DrivingSession
+import com.yandex.mapkit.directions.driving.VehicleOptions
 import com.yandex.mapkit.layers.ObjectEvent
-import com.yandex.mapkit.logo.Alignment
-import com.yandex.mapkit.logo.HorizontalAlignment
-import com.yandex.mapkit.logo.VerticalAlignment
 import com.yandex.mapkit.map.CameraListener
 import com.yandex.mapkit.map.CameraPosition
 import com.yandex.mapkit.map.CameraUpdateReason
-import com.yandex.mapkit.map.Map
-import com.yandex.mapkit.user_location.UserLocationLayer
+import com.yandex.mapkit.map.IconStyle
+import com.yandex.mapkit.map.Map // Добавьте этот импорт
+import com.yandex.mapkit.map.MapObjectCollection
 import com.yandex.mapkit.user_location.UserLocationObjectListener
 import com.yandex.mapkit.user_location.UserLocationView
+import com.yandex.runtime.Error
 import com.yandex.runtime.image.ImageProvider
 
-
-class MapFragment() : Fragment(), UserLocationObjectListener, CameraListener, Parcelable {
-
+class MapFragment() : Fragment(), UserLocationObjectListener, CameraListener, Parcelable,
+    DrivingSession.DrivingRouteListener {
+    constructor(parcel: Parcel) : this() {
+        // Ничего не требуется
+    }
 
     private lateinit var mBinding: FragmentMapBinding
     private lateinit var checkLocationPermission: ActivityResultLauncher<Array<String>>
+    private lateinit var mapFunc: MapFunc
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private var drivingRouter: DrivingRouter? = null
+    private var drivingSession: DrivingSession? = null
+    private var mapObjects: MapObjectCollection? = null
+    private var ROUTE_START_LOCATION = Point(47.229410, 39.718281)
+    private var ROUTE_END_LOCATION = Point(47.214004, 39.794605)
 
-    private lateinit var userLocationLayer: UserLocationLayer
-
-    private var routeStartLocation = Point(0.0, 0.0)
-
-    private var permissionLocation = false
-    private var followUserLocation = false
-
-    constructor(parcel: Parcel) : this() {
-        permissionLocation = parcel.readByte() != 0.toByte()
-        followUserLocation = parcel.readByte() != 0.toByte()
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        MapKitFactory.setApiKey("c7916f1b-9206-4fa1-92d2-dad1bc862be6")
-        MapKitFactory.initialize(requireContext())
+    ): View {
         mBinding = FragmentMapBinding.inflate(inflater, container, false)
         return mBinding.root
 
     }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Регистрация запроса разрешений после создания представления
-        checkLocationPermission = this.registerForActivityResult(
+        checkLocationPermission = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { permissions ->
-            if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-            ) {
-                onMapReady()
+            mapFunc.onRequestPermissionsResult(permissions)
+        }
+
+        mapFunc = MapFunc(this, checkLocationPermission, mBinding)
+
+        mapFunc.checkPermission()
+        mapFunc.userInterface()
+        drivingRouter = DirectionsFactory.getInstance().createDrivingRouter()
+        mapObjects = mBinding.mapview.map.mapObjects.addCollection()
+        arguments?.let { bundel ->
+            val lat = bundel.getString("latitude")
+            val lon = bundel.getString("longitude")
+            if (lat != null && lon != null) {
+                Toast.makeText(requireContext(), lat, Toast.LENGTH_LONG).show()
+                showRoute(lat, lon)
             }
         }
-
-        // Проверка разрешений
-        checkPermission()
-
-        // Настройка пользовательского интерфейса
-        userInterface()
-    }
-
-    private fun checkPermission() {
-        if (ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            onMapReady()
-        } else {
-            checkLocationPermission.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
+        arguments?.getParcelableArrayList<ParcelablePoint>("waypoints")?.let { parcelablePoints ->
+            val waypoints = parcelablePoints.map { it.toPoint() }
+            showManyRoutes(waypoints)
         }
     }
-    private fun userInterface() {
-        val mapLogoAlignment = Alignment(HorizontalAlignment.LEFT, VerticalAlignment.BOTTOM)
-        mBinding.mapview.mapWindow.map.logo.setAlignment(mapLogoAlignment)
 
-        mBinding.userLocationFab.setOnClickListener {
-            if (permissionLocation) {
-                cameraUserPosition()
-
-                followUserLocation = true
-            } else {
-                checkPermission()
-            }
-        }
-    }
-    private fun onMapReady() {
-        val mapKit = MapKitFactory.getInstance()
-        userLocationLayer = mapKit.createUserLocationLayer(mBinding.mapview.mapWindow)
-        userLocationLayer.isVisible = true
-        userLocationLayer.isHeadingEnabled = true
-        userLocationLayer.setObjectListener(this)
-
-        mBinding.mapview.mapWindow.map.addCameraListener(this)
-
-        cameraUserPosition()
-
-        permissionLocation = true
-    }
-    private fun cameraUserPosition() {
-        if (userLocationLayer.cameraPosition() != null) {
-            routeStartLocation = userLocationLayer.cameraPosition()!!.target
-            mBinding.mapview.mapWindow.map.move(
-                CameraPosition(routeStartLocation, 16f, 0f, 0f),
-                Animation(Animation.Type.SMOOTH, 1f),
-                null
+    override fun onObjectAdded(userLocationView: UserLocationView) {
+        mapFunc.setAnchor()
+        userLocationView.pin.setIcon(
+            ImageProvider.fromResource(
+                requireContext(),
+                R.drawable.user_arrow
             )
-        } else {
-            mBinding.mapview.mapWindow.map.move(CameraPosition(Point(0.0, 0.0), 16f, 0f, 0f))
-        }
+        )
+        userLocationView.arrow.setIcon(
+            ImageProvider.fromResource(
+                requireContext(),
+                R.drawable.user_arrow
+            )
+        )
+        userLocationView.accuracyCircle.fillColor = Color.BLUE
     }
+
+    override fun onObjectUpdated(p0: UserLocationView, p1: ObjectEvent) {}
+
+    override fun onObjectRemoved(p0: UserLocationView) {}
+
     override fun onCameraPositionChanged(
         map: Map, cPos: CameraPosition, cUpd: CameraUpdateReason, finish: Boolean
     ) {
         if (finish) {
-            if (followUserLocation) {
-                setAnchor()
+            if (mapFunc.followUserLocation) {
+                mapFunc.setAnchor()
             }
         } else {
-            if (!followUserLocation) {
-                noAnchor()
+            if (!mapFunc.followUserLocation) {
+                mapFunc.noAnchor()
             }
         }
     }
-    private fun setAnchor() {
-        userLocationLayer.setAnchor(
-            PointF(
-                ( mBinding.mapview.width * 0.5).toFloat(), ( mBinding.mapview.height * 0.5).toFloat()
-            ),
-            PointF(
-                ( mBinding.mapview.width * 0.5).toFloat(), ( mBinding.mapview.height * 0.83).toFloat()
-            )
-        )
-
-        mBinding.userLocationFab.setImageResource(R.drawable.ic_my_location_black_24dp)
-
-        followUserLocation = false
-    }
-    private fun noAnchor() {
-        userLocationLayer.resetAnchor()
-
-        mBinding.userLocationFab.setImageResource(R.drawable.ic_location_searching_black_24dp)
-    }
-    override fun onObjectAdded(userLocationView: UserLocationView) {
-        setAnchor()
-
-        userLocationView.pin.setIcon(ImageProvider.fromResource(requireContext(), R.drawable.user_arrow))
-        userLocationView.arrow.setIcon(ImageProvider.fromResource(requireContext(), R.drawable.user_arrow))
-        userLocationView.accuracyCircle.fillColor = Color.BLUE
-    }
-    override fun onObjectUpdated(p0: UserLocationView, p1: ObjectEvent) {}
-
-    override fun onObjectRemoved(p0: UserLocationView) {}
 
     override fun onStop() {
         mBinding.mapview.onStop()
@@ -194,16 +143,151 @@ class MapFragment() : Fragment(), UserLocationObjectListener, CameraListener, Pa
         super.onStart()
         MapKitFactory.getInstance().onStart()
         mBinding.mapview.onStart()
+    }
+
+    @SuppressLint("MissingPermission")
+    fun showRoute(lat: String, lon: String) {
+
+        val drivingOptions = DrivingOptions().apply { routesCount = 1 }
+        val vehicleOptions = VehicleOptions()
+
+        fusedLocationProviderClient =
+            LocationServices.getFusedLocationProviderClient(requireContext())
+        fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: android.location.Location? ->
+            ROUTE_START_LOCATION = Point(
+                location?.latitude.toString().toDouble(),
+                location?.longitude.toString().toDouble()
+            )
+            ROUTE_END_LOCATION = Point(lat.toDouble(), lon.toDouble())
+            val requestPoints: ArrayList<RequestPoint> = ArrayList()
+            requestPoints.add(
+                RequestPoint(
+                    ROUTE_START_LOCATION,
+                    RequestPointType.WAYPOINT,
+                    null,
+                    null
+                )
+            )
+            requestPoints.add(
+                RequestPoint(
+                    ROUTE_END_LOCATION,
+                    RequestPointType.WAYPOINT,
+                    null,
+                    null
+                )
+            )
+            addMarker(ROUTE_END_LOCATION, R.drawable.waypoint_marker)
+            drivingSession =
+                drivingRouter!!.requestRoutes(requestPoints, drivingOptions, vehicleOptions, this)
+        } ?: run {
+            Toast.makeText(
+                requireContext(),
+                "Не удалось получить текущую локацию",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
 
     }
+
+    @SuppressLint("MissingPermission")
+    fun showManyRoutes(waypoints: List<Point>) {
+        val drivingOptions = DrivingOptions().apply { routesCount = 1 }
+        val vehicleOptions = VehicleOptions()
+
+        fusedLocationProviderClient =
+            LocationServices.getFusedLocationProviderClient(requireContext())
+        fusedLocationProviderClient.lastLocation.addOnSuccessListener { location: android.location.Location? ->
+            if (location != null) {
+                ROUTE_START_LOCATION = Point(location.latitude, location.longitude)
+
+                // Используем последнюю точку из списка waypoints как конечную точку маршрута
+                if (waypoints.isNotEmpty()) {
+                    ROUTE_END_LOCATION = waypoints.last()
+                } else {
+                    Toast.makeText(requireContext(), "ЧТо то пошло не по плану", Toast.LENGTH_LONG)
+                        .show()
+                }
+
+                val requestPoints: ArrayList<RequestPoint> = ArrayList()
+                requestPoints.add(
+                    RequestPoint(
+                        ROUTE_START_LOCATION,
+                        RequestPointType.WAYPOINT,
+                        null,
+                        null
+                    )
+                )
+
+                // Добавляем промежуточные точки, кроме последней
+                for (i in 0 until waypoints.size - 1) {
+                    requestPoints.add(
+                        RequestPoint(
+                            waypoints[i],
+                            RequestPointType.WAYPOINT,
+                            null,
+                            null
+                        )
+                    )
+                    addMarker(waypoints[i], R.drawable.waypoint_marker)
+                }
+
+                requestPoints.add(
+                    RequestPoint(
+                        ROUTE_END_LOCATION,
+                        RequestPointType.WAYPOINT,
+                        null,
+                        null
+                    )
+                )
+
+                drivingSession = drivingRouter!!.requestRoutes(
+                    requestPoints,
+                    drivingOptions,
+                    vehicleOptions,
+                    this
+                )
+                addMarker(ROUTE_END_LOCATION, R.drawable.waypoint_marker)
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Не удалось получить текущую локацию",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+
+    private fun addMarker(point: Point, drawableId: Int) {
+        val imageProvider = ImageProvider.fromResource(requireContext(), drawableId)
+        val placemark = mapObjects?.addPlacemark(point, imageProvider)
+        placemark?.apply {
+            opacity = 1.0f
+            isDraggable = false
+            setIconStyle(
+                IconStyle().apply {
+                    scale = 0.1f // Установите фиксированный масштаб (например, 0.1f)
+                    zIndex = 1.0f
+                    // Попробуем без использования isFlat, так как он может быть не доступен в этом контексте
+                }
+            )
+        } ?: run {
+            Toast.makeText(
+                requireContext(),
+                "Не удалось добавить метку на карту",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
 
     override fun onResume() {
         super.onResume()
     }
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
-        parcel.writeByte(if (permissionLocation) 1 else 0)
-        parcel.writeByte(if (followUserLocation) 1 else 0)
+        parcel.writeByte(if (mapFunc.permissionLocation) 1 else 0)
+        parcel.writeByte(if (mapFunc.followUserLocation) 1 else 0)
     }
 
     override fun describeContents(): Int {
@@ -220,4 +304,19 @@ class MapFragment() : Fragment(), UserLocationObjectListener, CameraListener, Pa
         }
     }
 
+    override fun onDrivingRoutes(p0: MutableList<DrivingRoute>) {
+        for (route in p0) {
+            mapObjects!!.addPolyline(route.geometry)
+            val timeInMinutes = route.metadata.weight.time.text // Получаем время маршрута
+            mBinding.routeTime.text = "Время маршрута: $timeInMinutes"
+            mBinding.routeTime.visibility = View.VISIBLE
+        }
+    }
+
+    override fun onDrivingRoutesError(p0: Error) {
+        var errorMessage = "Неизвестная ошибка!"
+        Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show()
+
+
+    }
 }
